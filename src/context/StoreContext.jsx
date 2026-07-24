@@ -1,0 +1,230 @@
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { products } from "../data/products";
+import { sendOrderToTelegram } from "../services/telegram";
+import { useToast } from "./ToastContext";
+
+const StoreContext = createContext(null);
+
+function readLS(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function StoreProvider({ children }) {
+  const { showToast } = useToast();
+
+  const [cart, setCart] = useState(() => readLS("khata_cart", []));
+  const [favorites, setFavorites] = useState(() =>
+    readLS("khata_favorites", []).map((id) => Number(id))
+  );
+  const [users, setUsers] = useState(() => readLS("khata_users", []));
+  const [currentUser, setCurrentUser] = useState(() =>
+    readLS("khata_current_user", null)
+  );
+  const [orders, setOrders] = useState(() => readLS("khata_orders", []));
+
+  useEffect(() => {
+    localStorage.setItem("khata_cart", JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem("khata_favorites", JSON.stringify(favorites));
+  }, [favorites]);
+
+  useEffect(() => {
+    localStorage.setItem("khata_users", JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem("khata_orders", JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem("khata_current_user", JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem("khata_current_user");
+    }
+  }, [currentUser]);
+
+  const addToCart = useCallback(
+    (productId, count = 1) => {
+      const product = products.find((p) => p.id === productId);
+      if (!product) return;
+      setCart((prev) => {
+        const existing = prev.find((item) => item.id === productId);
+        if (existing) {
+          return prev.map((item) =>
+            item.id === productId
+              ? { ...item, quantity: item.quantity + count }
+              : item
+          );
+        }
+        return [...prev, { ...product, quantity: count }];
+      });
+      showToast(`Товар додано в кошик (${count} шт.)`);
+    },
+    [showToast]
+  );
+
+  const removeFromCart = useCallback((productId) => {
+    setCart((prev) => prev.filter((item) => item.id !== productId));
+  }, []);
+
+  const changeQuantity = useCallback(
+    (productId, delta) => {
+      setCart((prev) => {
+        const item = prev.find((p) => p.id === productId);
+        if (!item) return prev;
+        const nextQty = item.quantity + delta;
+        if (nextQty <= 0) {
+          return prev.filter((p) => p.id !== productId);
+        }
+        return prev.map((p) =>
+          p.id === productId ? { ...p, quantity: nextQty } : p
+        );
+      });
+    },
+    []
+  );
+
+  const clearCart = useCallback(() => setCart([]), []);
+
+  const toggleFavorite = useCallback((productId) => {
+    const id = Number(productId);
+    setFavorites((prev) =>
+      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
+    );
+  }, []);
+
+  const register = useCallback(
+    ({ name, phone, email, password }) => {
+      const cleanEmail = email.trim().toLowerCase();
+      if (users.some((u) => u.email === cleanEmail)) {
+        return { ok: false, error: "Користувач з такою поштою вже зареєстрований" };
+      }
+      const newUser = {
+        name,
+        phone,
+        email: cleanEmail,
+        password,
+        registeredAt: new Date().toISOString(),
+      };
+      setUsers((prev) => [...prev, newUser]);
+      const session = { name: newUser.name, phone: newUser.phone, email: newUser.email };
+      setCurrentUser(session);
+      showToast(`Ласкаво просимо, ${name.split(" ")[0]}!`);
+      return { ok: true };
+    },
+    [users, showToast]
+  );
+
+  const login = useCallback(
+    ({ email, password }) => {
+      const cleanEmail = email.trim().toLowerCase();
+      const user = users.find(
+        (u) => u.email === cleanEmail && u.password === password
+      );
+      if (!user) {
+        return { ok: false, error: "Невірна пошта або пароль" };
+      }
+      setCurrentUser({ name: user.name, phone: user.phone, email: user.email });
+      showToast(`З поверненням, ${user.name.split(" ")[0]}!`);
+      return { ok: true };
+    },
+    [users, showToast]
+  );
+
+  const logout = useCallback(() => {
+    setCurrentUser(null);
+    showToast("Ви вийшли з акаунту");
+  }, [showToast]);
+
+  const updateProfile = useCallback(
+    ({ name, phone }) => {
+      setCurrentUser((prev) => (prev ? { ...prev, name, phone } : prev));
+      setUsers((prev) =>
+        prev.map((u) =>
+          currentUser && u.email === currentUser.email ? { ...u, name, phone } : u
+        )
+      );
+    },
+    [currentUser]
+  );
+
+  const submitOrder = useCallback(
+    async ({ name, phone, email, delivery, address, payment, comment }) => {
+      const order = {
+        name,
+        phone,
+        email,
+        delivery,
+        address,
+        payment,
+        comment,
+        items: cart,
+        total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+        date: new Date().toISOString(),
+      };
+      setOrders((prev) => [...prev, order]);
+
+      // Фактична відправка в Telegram — не змінена
+      sendOrderToTelegram(order);
+
+      clearCart();
+      return order;
+    },
+    [cart, clearCart]
+  );
+
+  const myOrders = useMemo(() => {
+    if (!currentUser) return [];
+    return orders
+      .filter(
+        (o) =>
+          o.email?.toLowerCase() === currentUser.email.toLowerCase() ||
+          o.phone?.replace(/\D/g, "").endsWith(currentUser.phone.replace(/\D/g, "").slice(-9))
+      )
+      .reverse();
+  }, [orders, currentUser]);
+
+  const cartTotalSum = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cart]
+  );
+  const cartTotalCount = useMemo(
+    () => cart.reduce((count, item) => count + item.quantity, 0),
+    [cart]
+  );
+
+  const value = {
+    cart,
+    favorites,
+    currentUser,
+    myOrders,
+    cartTotalSum,
+    cartTotalCount,
+    addToCart,
+    removeFromCart,
+    changeQuantity,
+    clearCart,
+    toggleFavorite,
+    register,
+    login,
+    logout,
+    updateProfile,
+    submitOrder,
+  };
+
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+}
+
+export function useStore() {
+  const ctx = useContext(StoreContext);
+  if (!ctx) throw new Error("useStore must be used within StoreProvider");
+  return ctx;
+}
