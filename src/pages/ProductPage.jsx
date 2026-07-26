@@ -10,6 +10,10 @@ import {
   FaTruck,
   FaShieldAlt,
   FaCheckCircle,
+  FaStar,
+  FaRegStar,
+  FaTrash,
+  FaUserCircle,
 } from "react-icons/fa";
 import { products } from "../data/products";
 import { useStore } from "../context/StoreContext";
@@ -29,9 +33,15 @@ export default function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const product = products.find((p) => p.id === Number(id));
-  const { favorites, toggleFavorite, addToCart } = useStore();
+  const { favorites, toggleFavorite, addToCart, comments, addComment, deleteComment, currentUser } =
+    useStore();
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState("description");
+  const [commentName, setCommentName] = useState(currentUser?.name || "");
+  const [commentText, setCommentText] = useState("");
+  const [commentRating, setCommentRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [commentError, setCommentError] = useState("");
 
   if (!product) {
     return (
@@ -43,10 +53,30 @@ export default function ProductPage() {
   }
 
   const isFav = favorites.includes(Number(product.id));
+  const productComments = comments[Number(product.id)] || [];
+  const commentsAvgRating = productComments.length
+    ? productComments.reduce((sum, c) => sum + c.rating, 0) / productComments.length
+    : product.rating;
 
   function handleBuyNow() {
     addToCart(product.id, qty);
     navigate("/checkout");
+  }
+
+  function handleSubmitComment(e) {
+    e.preventDefault();
+    if (!commentText.trim()) {
+      setCommentError("Напишіть текст коментаря.");
+      return;
+    }
+    addComment(product.id, {
+      name: commentName,
+      text: commentText,
+      rating: commentRating,
+    });
+    setCommentText("");
+    setCommentRating(5);
+    setCommentError("");
   }
 
   return (
@@ -122,6 +152,9 @@ export default function ProductPage() {
               onClick={() => setTab(t.key)}
             >
               {t.label}
+              {t.key === "reviews" && productComments.length > 0 && (
+                <span className="product-tabs__count">{productComments.length}</span>
+              )}
             </button>
           ))}
         </div>
@@ -146,11 +179,89 @@ export default function ProductPage() {
 
           {tab === "reviews" && (
             <div className="product-tabs__reviews">
-              <Rating value={product.rating} reviewsCount={product.reviewsCount} size="lg" />
-              <p className="muted">
-                Детальні відгуки покупців ще не додані. Будьте першим, хто залишить відгук про
-                цей товар!
-              </p>
+              <div className="reviews-summary">
+                <Rating value={commentsAvgRating} reviewsCount={productComments.length} size="lg" />
+              </div>
+
+              {productComments.length === 0 ? (
+                <p className="muted">
+                  Відгуків ще немає. Будьте першим, хто залишить коментар про цей товар!
+                </p>
+              ) : (
+                <ul className="comments-list">
+                  {[...productComments].reverse().map((c) => (
+                    <li className="comment-item" key={c.id}>
+                      <div className="comment-item__avatar">
+                        <FaUserCircle />
+                      </div>
+                      <div className="comment-item__body">
+                        <div className="comment-item__head">
+                          <span className="comment-item__name">{c.name}</span>
+                          <span className="comment-item__date">
+                            {new Date(c.date).toLocaleDateString("uk-UA")}
+                          </span>
+                        </div>
+                        <Rating value={c.rating} size="sm" />
+                        <p className="comment-item__text">{c.text}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="comment-item__delete"
+                        title="Видалити коментар"
+                        onClick={() => deleteComment(product.id, c.id)}
+                      >
+                        <FaTrash />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <form className="comment-form" onSubmit={handleSubmitComment}>
+                <h3>Залишити коментар</h3>
+                <div className="comment-form__stars">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      type="button"
+                      key={n}
+                      className="comment-form__star"
+                      onMouseEnter={() => setHoverRating(n)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      onClick={() => setCommentRating(n)}
+                      aria-label={`Оцінка ${n} з 5`}
+                    >
+                      {n <= (hoverRating || commentRating) ? <FaStar /> : <FaRegStar />}
+                    </button>
+                  ))}
+                </div>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label>Ім'я</label>
+                    <input
+                      type="text"
+                      placeholder="Ваше ім'я"
+                      value={commentName}
+                      onChange={(e) => setCommentName(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="form-field">
+                  <label>Коментар</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Поділіться враженням про товар..."
+                    value={commentText}
+                    onChange={(e) => {
+                      setCommentText(e.target.value);
+                      if (commentError) setCommentError("");
+                    }}
+                  />
+                </div>
+                {commentError && <p className="comment-form__error">{commentError}</p>}
+                <button type="submit" className="btn btn--primary">
+                  Надіслати коментар
+                </button>
+              </form>
             </div>
           )}
 

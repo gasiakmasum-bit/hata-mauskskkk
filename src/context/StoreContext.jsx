@@ -1,4 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import {
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  orderBy,
+} from "firebase/firestore";
+import { db } from "../services/firebase";
 import { products } from "../data/products";
 import { sendOrderToTelegram } from "../services/telegram";
 import { useToast } from "./ToastContext";
@@ -26,6 +36,40 @@ export function StoreProvider({ children }) {
     readLS("khata_current_user", null)
   );
   const [orders, setOrders] = useState(() => readLS("khata_orders", []));
+
+  // Коментарі до товарів зберігаються у Firestore (спільно для всіх користувачів),
+  // а не в localStorage. Підписуємось на колекцію "comments" і слухаємо зміни в реальному часі.
+  const [comments, setComments] = useState({});
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, "comments"), orderBy("date", "asc"));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const grouped = {};
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const productId = Number(data.productId);
+          if (!grouped[productId]) grouped[productId] = [];
+          grouped[productId].push({
+            id: docSnap.id,
+            name: data.name,
+            text: data.text,
+            rating: data.rating,
+            date: data.date,
+          });
+        });
+        setComments(grouped);
+        setCommentsLoaded(true);
+      },
+      (error) => {
+        console.error("Помилка завантаження коментарів з Firestore:", error);
+        setCommentsLoaded(true);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("khata_cart", JSON.stringify(cart));
@@ -181,6 +225,40 @@ export function StoreProvider({ children }) {
     [cart, clearCart]
   );
 
+  const addComment = useCallback(
+    async (productId, { name, text, rating }) => {
+      const id = Number(productId);
+      const newComment = {
+        productId: id,
+        name: (name || "Гість").trim(),
+        text: text.trim(),
+        rating: rating || 5,
+        date: new Date().toISOString(),
+      };
+      try {
+        await addDoc(collection(db, "comments"), newComment);
+        showToast("Дякуємо! Ваш коментар додано.");
+      } catch (error) {
+        console.error("Не вдалося зберегти коментар у Firestore:", error);
+        showToast("Не вдалося надіслати коментар. Спробуйте ще раз.");
+      }
+      return newComment;
+    },
+    [showToast]
+  );
+
+  const deleteComment = useCallback(
+    async (productId, commentId) => {
+      try {
+        await deleteDoc(doc(db, "comments", String(commentId)));
+      } catch (error) {
+        console.error("Не вдалося видалити коментар у Firestore:", error);
+        showToast("Не вдалося видалити коментар.");
+      }
+    },
+    [showToast]
+  );
+
   const myOrders = useMemo(() => {
     if (!currentUser) return [];
     return orders
@@ -208,6 +286,10 @@ export function StoreProvider({ children }) {
     myOrders,
     cartTotalSum,
     cartTotalCount,
+    comments,
+    commentsLoaded,
+    addComment,
+    deleteComment,
     addToCart,
     removeFromCart,
     changeQuantity,

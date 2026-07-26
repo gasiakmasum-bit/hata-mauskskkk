@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { FaTools, FaArrowRight } from "react-icons/fa";
+import { FaArrowRight } from "react-icons/fa";
 import { MANUFACTURERS } from "../data/products";
 import Breadcrumbs from "../components/Breadcrumbs";
 
@@ -22,7 +22,11 @@ export default function Manufacturers() {
             onClick={() => navigate(`/catalog?category=&brand=${m.slug}`)}
           >
             <div className="manufacturer-card__logo">
-              <FaTools />
+              <img
+                src={`${import.meta.env.BASE_URL}${m.logo}`}
+                alt={m.name}
+                loading="lazy"
+              />
             </div>
             <div className="manufacturer-card__content">
               <h3>{m.name}</h3>

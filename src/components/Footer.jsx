@@ -21,10 +21,10 @@ export default function Footer() {
             <p>ВСЕ ДЛЯ БУДІВНИЦТВА ТА РЕМОНТУ</p>
           </div>
           <div className="social-block">
-            <a href="#" aria-label="Facebook" className="social-block__icon social-block__icon--facebook"><FaFacebookF /></a>
-            <a href="#" aria-label="Instagram" className="social-block__icon social-block__icon--instagram"><FaInstagram /></a>
-            <a href="#" aria-label="TikTok" className="social-block__icon social-block__icon--tiktok"><FaTiktok /></a>
-            <a href="#" aria-label="Telegram" className="social-block__icon social-block__icon--telegram"><FaTelegramPlane /></a>
+            <a href="https://www.facebook.com/share/1BrPE2HDod/?mibextid=wwXIfr" aria-label="Facebook" className="social-block__icon social-block__icon--facebook"><FaFacebookF /></a>
+            <a href="https://www.instagram.com/masters_house_ua?igsh=MW83eXVybXo4azkxbg%3D%3D&utm_source=qr" aria-label="Instagram" className="social-block__icon social-block__icon--instagram"><FaInstagram /></a>
+            <a href="https://www.tiktok.com/@masters_house_ua?_r=1&_t=ZS-98CLDkEvkY8" aria-label="TikTok" className="social-block__icon social-block__icon--tiktok"><FaTiktok /></a>
+            <a href="https://t.me/+380970775313" aria-label="Telegram" className="social-block__icon social-block__icon--telegram"><FaTelegramPlane /></a>
             <a href="https://wa.me/380970775613" aria-label="WhatsApp" className="social-block__icon social-block__icon--whatsapp"><FaWhatsapp /></a>
             <a href="viber://chat?number=%2B380970775613" aria-label="Viber" className="social-block__icon social-block__icon--viber"><FaViber /></a>
           </div>

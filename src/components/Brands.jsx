@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BRAND_LIST } from "../data/products";
+import { MANUFACTURERS } from "../data/products";
 
 export default function Brands() {
   return (
@@ -9,10 +9,19 @@ export default function Brands() {
         <Link to="/manufacturers">Всі бренди →</Link>
       </div>
       <div className="container brands-grid">
-        {BRAND_LIST.map((brand) => (
-          <div className="brand-chip" key={brand}>
-            {brand}
-          </div>
+        {MANUFACTURERS.map((brand) => (
+          <Link
+            to={`/catalog?category=&brand=${brand.slug}`}
+            className="brand-chip"
+            key={brand.slug}
+            title={brand.name}
+          >
+            <img
+              src={`${import.meta.env.BASE_URL}${brand.logo}`}
+              alt={brand.name}
+              loading="lazy"
+            />
+          </Link>
         ))}
       </div>
     </section>

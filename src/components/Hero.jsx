@@ -47,6 +47,7 @@ export default function Hero() {
             className="hero__photo-img"
           />
           <div className="hero__photo-fade" />
+          <div className="hero__photo-glow" aria-hidden="true" />
         </div>
       </div>
     </section>

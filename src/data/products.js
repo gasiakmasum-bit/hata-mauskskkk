@@ -114,53 +114,111 @@ export const CATALOG_CATEGORIES = [
 export const CATALOG_BRANDS = ["Vitals", "Forte", "Werk", "Sturmax"];
 
 export const BRAND_LIST = [
+  "Sturmax",
   "Vitals",
   "Forte",
-  "Sturmax",
   "Rebiner",
-  "Apro",
+  "Сталь",
   "Werk",
   "WINSO",
   "Kentavr",
-  "Pro Go",
-  "Texas",
+  "DroGo",
+  "Техас",
+  "Yato",
+  "Apro",
+  "GTM",
 ];
 
 export const MANUFACTURERS = [
   {
     slug: "sturmax",
     name: "Sturmax",
+    logo: "img/brands/sturmax.png",
     description:
       "Sturmax — відомий український бренд будівельного інструменту, електроінструменту та садової техніки.",
   },
   {
     slug: "vitals",
     name: "Vitals",
+    logo: "img/brands/vitals.jpg",
     description:
       "Vitals — латвійський бренд з 25-річною історією, що виготовляє інструменти, садову техніку та зварювальне обладнання.",
   },
   {
     slug: "forte",
     name: "Forte",
+    logo: "img/brands/forte.jpg",
     description:
       "Forte — міжнародний бренд силової техніки, інструментів та садового обладнання для дому й будівництва.",
   },
   {
     slug: "rebiner",
     name: "Rebiner",
+    logo: "img/brands/rebiner.png",
     description:
       "Rebiner — міжнародний бренд доступного та надійного інструменту й садової техніки для дому та майстерні.",
   },
   {
     slug: "stal",
     name: "Сталь",
+    logo: "img/brands/stal.jpg",
     description:
       "Сталь — українська торгова марка ручного, електро- та садового інструменту й витратних матеріалів.",
   },
   {
     slug: "werk",
     name: "Werk",
+    logo: "img/brands/werk.jpg",
     description:
       "Werk — виробник доступного будівельного, садового та силового обладнання для побутового використання.",
+  },
+  {
+    slug: "winso",
+    name: "WINSO",
+    logo: "img/brands/winso.jpg",
+    description:
+      "WINSO — бренд автохімії, автокосметики та технічних рідин для догляду за автомобілем.",
+  },
+  {
+    slug: "kentavr",
+    name: "Kentavr",
+    logo: "img/brands/kentavr.jpg",
+    description:
+      "Kentavr — виробник сільськогосподарської та садової техніки: мотоблоків, культиваторів і насосного обладнання.",
+  },
+  {
+    slug: "drogo",
+    name: "DroGo",
+    logo: "img/brands/drogo.jpg",
+    description:
+      "DroGo — бренд садового інвентарю та інструменту для догляду за присадибною ділянкою.",
+  },
+  {
+    slug: "texas",
+    name: "Техас",
+    logo: "img/brands/texas.jpg",
+    description:
+      "Техас — торгова марка ручного інструменту та кріпильних виробів для дому й майстерні.",
+  },
+  {
+    slug: "yato",
+    name: "Yato",
+    logo: "img/brands/yato.webp",
+    description:
+      "Yato — польський бренд професійного ручного та електроінструменту, відомий надійністю та широким асортиментом.",
+  },
+  {
+    slug: "apro",
+    name: "Apro",
+    logo: "img/brands/apro.png",
+    description:
+      "Apro — бренд електроінструменту та обладнання для будівництва, ремонту й садових робіт.",
+  },
+  {
+    slug: "gtm",
+    name: "GTM",
+    logo: "img/brands/gtm.png",
+    description:
+      "GTM — виробник бензо- та електроінструменту, генераторів і садової техніки.",
   },
 ];
