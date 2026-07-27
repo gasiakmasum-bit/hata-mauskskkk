@@ -1,8 +1,9 @@
-import { products } from "../data/products";
+import { useStore } from "../context/StoreContext";
 import ProductGrid from "../components/ProductGrid";
 import Breadcrumbs from "../components/Breadcrumbs";
 
 export default function Promotions() {
+  const { products } = useStore();
   const discounted = products.filter((p) => p.discount);
   return (
     <div className="container page">

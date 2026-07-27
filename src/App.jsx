@@ -16,6 +16,7 @@ import About from "./pages/About";
 import Contacts from "./pages/Contacts";
 import Promotions from "./pages/Promotions";
 import Delivery from "./pages/Delivery";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/promotions" element={<Promotions />} />
         <Route path="/delivery" element={<Delivery />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

@@ -1,9 +1,10 @@
 import { useSearchParams } from "react-router-dom";
-import { products } from "../data/products";
+import { useStore } from "../context/StoreContext";
 import ProductGrid from "../components/ProductGrid";
 import Breadcrumbs from "../components/Breadcrumbs";
 
 export default function SearchResults() {
+  const { products } = useStore();
   const [searchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").toLowerCase().trim();
 

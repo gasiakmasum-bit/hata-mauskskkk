@@ -18,7 +18,7 @@ export default function PromoBanners() {
           <img className="banner-card__photo" src={`${import.meta.env.BASE_URL}img/promo-spring.jpg`} alt="" aria-hidden="true" />
           <div className="banner-card__scrim banner-card__scrim--orange" aria-hidden="true" />
           <div className="banner-card__content">
-            <h3>ВЕСНЯНІ ЗНИЖКИ<br />НА САДОВУ ТЕХНІКУ</h3>
+            <h3>ЛІТНІ ЗНИЖКИ<br />НА САДОВУ ТЕХНІКУ</h3>
             <Link to="/catalog" className="btn btn--dark">Дивитись</Link>
           </div>
         </div>

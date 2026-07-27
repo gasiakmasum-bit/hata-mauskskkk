@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, useCallback } 
 import {
   collection,
   addDoc,
+  setDoc,
   deleteDoc,
   doc,
   onSnapshot,
@@ -9,7 +10,7 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db } from "../services/firebase";
-import { products } from "../data/products";
+import { seedProducts } from "../data/products";
 import { sendOrderToTelegram } from "../services/telegram";
 import { useToast } from "./ToastContext";
 
@@ -36,6 +37,31 @@ export function StoreProvider({ children }) {
     readLS("khata_current_user", null)
   );
   const [orders, setOrders] = useState(() => readLS("khata_orders", []));
+
+  // Товари теж зберігаються у Firestore (колекція "products"), спільно для всіх.
+  // Нові товари додаються через сторінку /admin — без редагування коду.
+  const [products, setProducts] = useState([]);
+  const [productsLoaded, setProductsLoaded] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, "products"), orderBy("id", "asc"));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list = snapshot.docs.map((docSnap) => ({
+          ...docSnap.data(),
+          firestoreId: docSnap.id,
+        }));
+        setProducts(list);
+        setProductsLoaded(true);
+      },
+      (error) => {
+        console.error("Помилка завантаження товарів з Firestore:", error);
+        setProductsLoaded(true);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
 
   // Коментарі до товарів зберігаються у Firestore (спільно для всіх користувачів),
   // а не в localStorage. Підписуємось на колекцію "comments" і слухаємо зміни в реальному часі.
@@ -112,7 +138,7 @@ export function StoreProvider({ children }) {
       });
       showToast(`Товар додано в кошик (${count} шт.)`);
     },
-    [showToast]
+    [products, showToast]
   );
 
   const removeFromCart = useCallback((productId) => {
@@ -259,6 +285,67 @@ export function StoreProvider({ children }) {
     [showToast]
   );
 
+  const addProduct = useCallback(
+    async (productData) => {
+      try {
+        const nextId =
+          products.length > 0 ? Math.max(...products.map((p) => Number(p.id) || 0)) + 1 : 1;
+        const newProduct = { ...productData, id: nextId };
+        await setDoc(doc(db, "products", String(nextId)), newProduct);
+        showToast("Товар додано!");
+        return { ok: true, product: newProduct };
+      } catch (error) {
+        console.error("Не вдалося зберегти товар у Firestore:", error);
+        showToast("Не вдалося додати товар. Спробуйте ще раз.");
+        return { ok: false };
+      }
+    },
+    [products, showToast]
+  );
+
+  const updateProduct = useCallback(
+    async (id, productData) => {
+      try {
+        await setDoc(doc(db, "products", String(id)), { ...productData, id: Number(id) });
+        showToast("Товар оновлено!");
+        return { ok: true };
+      } catch (error) {
+        console.error("Не вдалося оновити товар у Firestore:", error);
+        showToast("Не вдалося оновити товар.");
+        return { ok: false };
+      }
+    },
+    [showToast]
+  );
+
+  const deleteProduct = useCallback(
+    async (id) => {
+      try {
+        await deleteDoc(doc(db, "products", String(id)));
+        showToast("Товар видалено.");
+      } catch (error) {
+        console.error("Не вдалося видалити товар у Firestore:", error);
+        showToast("Не вдалося видалити товар.");
+      }
+    },
+    [showToast]
+  );
+
+  // Одноразове "заселення" бази стартовим набором товарів (кнопка в адмінці).
+  const seedProductsToFirestore = useCallback(async () => {
+    try {
+      for (const product of seedProducts) {
+        await setDoc(doc(db, "products", String(product.id)), product);
+      }
+      showToast("Стартові товари завантажено в базу!");
+      return { ok: true };
+    } catch (error) {
+      console.error("Не вдалося заселити товари у Firestore:", error);
+      showToast("Не вдалося завантажити стартові товари.");
+      return { ok: false };
+    }
+  }, [showToast]);
+
   const myOrders = useMemo(() => {
     if (!currentUser) return [];
     return orders
@@ -286,6 +373,12 @@ export function StoreProvider({ children }) {
     myOrders,
     cartTotalSum,
     cartTotalCount,
+    products,
+    productsLoaded,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    seedProductsToFirestore,
     comments,
     commentsLoaded,
     addComment,

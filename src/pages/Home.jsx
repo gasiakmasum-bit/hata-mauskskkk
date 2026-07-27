@@ -5,9 +5,10 @@ import PromoBanners from "../components/PromoBanners";
 import Brands from "../components/Brands";
 import Testimonials from "../components/Testimonials";
 import VisitUs from "../components/VisitUs";
-import { products } from "../data/products";
+import { useStore } from "../context/StoreContext";
 
 export default function Home() {
+  const { products } = useStore();
   return (
     <>
       <Hero />
@@ -15,7 +16,7 @@ export default function Home() {
       <section className="section">
         <div className="container">
           <h2 className="section__title">Популярні товари</h2>
-          <ProductGrid items={products} />
+          <ProductGrid items={products.slice(0, 8)} />
         </div>
       </section>
       <PromoBanners />

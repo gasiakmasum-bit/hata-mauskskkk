@@ -24,7 +24,15 @@ export default function ProductCard({ product }) {
       </button>
 
       <div className="product-card__media">
-        <ProductIcon icon={product.icon} />
+        {product.images?.[0] || product.image ? (
+          <img
+            src={product.images?.[0] || product.image}
+            alt={product.title}
+            className="product-card__photo"
+          />
+        ) : (
+          <ProductIcon icon={product.icon} />
+        )}
       </div>
 
       <div className="product-card__body">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   FaHeart,
@@ -15,7 +15,6 @@ import {
   FaTrash,
   FaUserCircle,
 } from "react-icons/fa";
-import { products } from "../data/products";
 import { useStore } from "../context/StoreContext";
 import Breadcrumbs from "../components/Breadcrumbs";
 import ProductIcon from "../components/ProductIcon";
@@ -32,10 +31,23 @@ const TABS = [
 export default function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const {
+    products,
+    favorites,
+    toggleFavorite,
+    addToCart,
+    comments,
+    addComment,
+    deleteComment,
+    currentUser,
+  } = useStore();
   const product = products.find((p) => p.id === Number(id));
-  const { favorites, toggleFavorite, addToCart, comments, addComment, deleteComment, currentUser } =
-    useStore();
   const [qty, setQty] = useState(1);
+  const [activePhoto, setActivePhoto] = useState(0);
+
+  useEffect(() => {
+    setActivePhoto(0);
+  }, [id]);
   const [tab, setTab] = useState("description");
   const [commentName, setCommentName] = useState(currentUser?.name || "");
   const [commentText, setCommentText] = useState("");
@@ -92,8 +104,32 @@ export default function ProductPage() {
         <div className="product-page__gallery">
           <div className="product-page__main-image">
             {product.discount && <span className="product-card__badge">Акція</span>}
-            <ProductIcon icon={product.icon} className="product-icon--lg" />
+            {product.images?.length > 0 ? (
+              <img
+                src={product.images[activePhoto] || product.images[0]}
+                alt={product.title}
+                className="product-page__photo"
+              />
+            ) : product.image ? (
+              <img src={product.image} alt={product.title} className="product-page__photo" />
+            ) : (
+              <ProductIcon icon={product.icon} className="product-icon--lg" />
+            )}
           </div>
+          {product.images?.length > 1 && (
+            <div className="product-page__thumbs">
+              {product.images.map((img, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`product-page__thumb ${i === activePhoto ? "active" : ""}`}
+                  onClick={() => setActivePhoto(i)}
+                >
+                  <img src={img} alt={`${product.title} ${i + 1}`} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="product-page__info">

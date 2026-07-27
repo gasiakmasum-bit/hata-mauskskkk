@@ -2,11 +2,13 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../components/Breadcrumbs";
 import ProductGrid from "../components/ProductGrid";
-import { products, CATALOG_CATEGORIES, CATALOG_BRANDS } from "../data/products";
+import { CATALOG_CATEGORIES, CATALOG_BRANDS } from "../data/products";
+import { useStore } from "../context/StoreContext";
 
 const MAX_PRICE = 25000;
 
 export default function Catalog() {
+  const { products } = useStore();
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get("category") || "";
 
@@ -43,7 +45,7 @@ export default function Catalog() {
     else list = [...list].sort((a, b) => (b.reviewsCount || 0) - (a.reviewsCount || 0));
 
     return list;
-  }, [category, minPrice, maxPrice, brands, sort]);
+  }, [products, category, minPrice, maxPrice, brands, sort]);
 
   return (
     <div className="container page">

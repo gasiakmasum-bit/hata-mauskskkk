@@ -1,10 +1,9 @@
-import { products } from "../data/products";
 import { useStore } from "../context/StoreContext";
 import ProductGrid from "../components/ProductGrid";
 import Breadcrumbs from "../components/Breadcrumbs";
 
 export default function Favorites() {
-  const { favorites } = useStore();
+  const { favorites, products } = useStore();
   const favProducts = products.filter((p) => favorites.includes(Number(p.id)));
 
   return (
