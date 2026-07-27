@@ -31,7 +31,15 @@ export default function Cart() {
               <div className="cart-item" key={item.id}>
                 <div className="cart-item__info">
                   <div className="cart-item__thumb">
-                    <ProductIcon icon={item.icon} />
+                    {item.images?.[0] || item.image ? (
+                      <img
+                        src={item.images?.[0] || item.image}
+                        alt={item.title}
+                        className="cart-item__photo"
+                      />
+                    ) : (
+                      <ProductIcon icon={item.icon} />
+                    )}
                   </div>
                   <div>
                     <h4>{item.title}</h4>

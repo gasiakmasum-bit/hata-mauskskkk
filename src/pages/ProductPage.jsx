@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   FaHeart,
@@ -44,6 +44,30 @@ export default function ProductPage() {
   const product = products.find((p) => p.id === Number(id));
   const [qty, setQty] = useState(1);
   const [activePhoto, setActivePhoto] = useState(0);
+  const touchStartX = useRef(null);
+  const touchDeltaX = useRef(0);
+
+  function handleTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX;
+    touchDeltaX.current = 0;
+  }
+
+  function handleTouchMove(e) {
+    if (touchStartX.current === null) return;
+    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
+  }
+
+  function handleTouchEnd() {
+    if (!product?.images || product.images.length < 2) return;
+    const SWIPE_THRESHOLD = 40;
+    if (touchDeltaX.current > SWIPE_THRESHOLD) {
+      setActivePhoto((i) => (i - 1 + product.images.length) % product.images.length);
+    } else if (touchDeltaX.current < -SWIPE_THRESHOLD) {
+      setActivePhoto((i) => (i + 1) % product.images.length);
+    }
+    touchStartX.current = null;
+    touchDeltaX.current = 0;
+  }
 
   useEffect(() => {
     setActivePhoto(0);
@@ -102,7 +126,12 @@ export default function ProductPage() {
 
       <div className="product-page">
         <div className="product-page__gallery">
-          <div className="product-page__main-image">
+          <div
+            className="product-page__main-image"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
             {product.discount && <span className="product-card__badge">Акція</span>}
             {product.images?.length > 0 ? (
               <img

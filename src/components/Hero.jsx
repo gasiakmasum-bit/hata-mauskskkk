@@ -41,12 +41,12 @@ export default function Hero() {
           <span className="hero__photo-label">
             <FaTools /> Хата Майстра
           </span>
+          <div className="hero__photo-ground" aria-hidden="true" />
           <img
-            src={`${import.meta.env.BASE_URL}img/hero-master.jpg`}
-            alt="Майстер працює в майстерні з електроінструментом"
+            src={`${import.meta.env.BASE_URL}img/hero-generator.png`}
+            alt="Генератор Vitals та набір електроінструменту"
             className="hero__photo-img"
           />
-          <div className="hero__photo-fade" />
           <div className="hero__photo-glow" aria-hidden="true" />
         </div>
       </div>
