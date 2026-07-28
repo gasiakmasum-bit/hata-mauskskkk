@@ -15,6 +15,7 @@ import {
   FaRegStar,
   FaTrash,
   FaUserCircle,
+  FaTimes,
 } from "react-icons/fa";
 import { useStore } from "../context/StoreContext";
 import Breadcrumbs from "../components/Breadcrumbs";
@@ -45,6 +46,7 @@ export default function ProductPage() {
   const product = products.find((p) => p.id === Number(id));
   const [qty, setQty] = useState(1);
   const [activePhoto, setActivePhoto] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef(null);
   const touchDeltaX = useRef(0);
 
@@ -82,7 +84,24 @@ export default function ProductPage() {
 
   useEffect(() => {
     setActivePhoto(0);
+    setLightboxOpen(false);
   }, [id]);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    function handleKeyDown(e) {
+      if (e.key === "Escape") setLightboxOpen(false);
+      else if (e.key === "ArrowLeft") goToPrevPhoto();
+      else if (e.key === "ArrowRight") goToNextPhoto();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [lightboxOpen, product?.images?.length]);
   const [tab, setTab] = useState("description");
   const [commentName, setCommentName] = useState(currentUser?.name || "");
   const [commentText, setCommentText] = useState("");
@@ -148,10 +167,16 @@ export default function ProductPage() {
               <img
                 src={product.images[activePhoto] || product.images[0]}
                 alt={product.title}
-                className="product-page__photo"
+                className="product-page__photo product-page__photo--zoomable"
+                onClick={() => setLightboxOpen(true)}
               />
             ) : product.image ? (
-              <img src={product.image} alt={product.title} className="product-page__photo" />
+              <img
+                src={product.image}
+                alt={product.title}
+                className="product-page__photo product-page__photo--zoomable"
+                onClick={() => setLightboxOpen(true)}
+              />
             ) : (
               <ProductIcon icon={product.icon} className="product-icon--lg" />
             )}
@@ -391,6 +416,82 @@ export default function ProductPage() {
           )}
         </div>
       </div>
+
+      {lightboxOpen && (product.images?.length > 0 || product.image) && (
+        <div
+          className="lightbox-overlay"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            type="button"
+            className="lightbox__close"
+            aria-label="Закрити"
+            onClick={() => setLightboxOpen(false)}
+          >
+            <FaTimes />
+          </button>
+
+          <div
+            className="lightbox"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            {product.images?.length > 1 && (
+              <button
+                type="button"
+                className="lightbox__arrow lightbox__arrow--prev"
+                aria-label="Попереднє фото"
+                onClick={goToPrevPhoto}
+              >
+                <FaChevronLeft />
+              </button>
+            )}
+
+            <img
+              src={(product.images?.[activePhoto]) || product.image}
+              alt={product.title}
+              className="lightbox__image"
+            />
+
+            {product.images?.length > 1 && (
+              <button
+                type="button"
+                className="lightbox__arrow lightbox__arrow--next"
+                aria-label="Наступне фото"
+                onClick={goToNextPhoto}
+              >
+                <FaChevronRight />
+              </button>
+            )}
+          </div>
+
+          <div className="lightbox__footer" onClick={(e) => e.stopPropagation()}>
+            <span className="lightbox__caption">{product.title}</span>
+            {product.images?.length > 1 && (
+              <span className="lightbox__counter">
+                {activePhoto + 1} of {product.images.length}
+              </span>
+            )}
+          </div>
+
+          {product.images?.length > 1 && (
+            <div className="lightbox__thumbs" onClick={(e) => e.stopPropagation()}>
+              {product.images.map((img, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`lightbox__thumb ${i === activePhoto ? "active" : ""}`}
+                  onClick={() => setActivePhoto(i)}
+                >
+                  <img src={img} alt={`${product.title} ${i + 1}`} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
