@@ -101,7 +101,7 @@ export default function Header() {
             <a href="viber://chat?number=%2B380970775613" aria-label="Viber">
               <FaViber />
             </a>
-            <a href="https://t.me/masters_house_ua" aria-label="Telegram">
+            <a href="#" aria-label="Telegram">
               <FaTelegramPlane />
             </a>
           </div>

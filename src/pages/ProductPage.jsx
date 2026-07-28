@@ -9,6 +9,8 @@ import {
   FaPlus,
   FaTruck,
   FaCheckCircle,
+  FaChevronLeft,
+  FaChevronRight,
   FaStar,
   FaRegStar,
   FaTrash,
@@ -66,6 +68,16 @@ export default function ProductPage() {
     }
     touchStartX.current = null;
     touchDeltaX.current = 0;
+  }
+
+  function goToPrevPhoto() {
+    if (!product?.images || product.images.length < 2) return;
+    setActivePhoto((i) => (i - 1 + product.images.length) % product.images.length);
+  }
+
+  function goToNextPhoto() {
+    if (!product?.images || product.images.length < 2) return;
+    setActivePhoto((i) => (i + 1) % product.images.length);
   }
 
   useEffect(() => {
@@ -143,6 +155,32 @@ export default function ProductPage() {
             ) : (
               <ProductIcon icon={product.icon} className="product-icon--lg" />
             )}
+            {product.images?.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className="product-page__nav-arrow product-page__nav-arrow--prev"
+                  aria-label="Попереднє фото"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToPrevPhoto();
+                  }}
+                >
+                  <FaChevronLeft />
+                </button>
+                <button
+                  type="button"
+                  className="product-page__nav-arrow product-page__nav-arrow--next"
+                  aria-label="Наступне фото"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToNextPhoto();
+                  }}
+                >
+                  <FaChevronRight />
+                </button>
+              </>
+            )}
           </div>
           {product.images?.length > 1 && (
             <div className="product-page__thumbs">
@@ -202,7 +240,7 @@ export default function ProductPage() {
 
           <div className="product-page__perks">
             <span><FaTruck /> Доставка по всій Україні</span>
-            <span>
+            <span className="product-page__warranty-row">
               <img
                 src={`${import.meta.env.BASE_URL}img/garant-36.svg`}
                 alt="Офіційна гарантія 36 місяців"

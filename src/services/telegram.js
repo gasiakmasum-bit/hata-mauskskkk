@@ -22,7 +22,7 @@ export async function sendOrderToTelegram(order) {
   const itemsText = order.items
     .map(
       (item) =>
-        `• ${item.title} — ${item.quantity} шт. × ${item.price} грн = ${
+        `• ${item.title} (Код товару: ${item.code || "—"}) — ${item.quantity} шт. × ${item.price} грн = ${
           item.price * item.quantity
         } грн`
     )
