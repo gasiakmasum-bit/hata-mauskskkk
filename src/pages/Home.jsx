@@ -16,7 +16,7 @@ export default function Home() {
       <section className="section">
         <div className="container">
           <h2 className="section__title">Популярні товари</h2>
-          <ProductGrid items={products.slice(0, 8)} />
+          <ProductGrid items={products.slice(0, 10)} />
         </div>
       </section>
       <PromoBanners />

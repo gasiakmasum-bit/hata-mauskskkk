@@ -4,7 +4,7 @@
 // =============================================================
 
 const TG_BOT_TOKEN = "8662647765:AAHqsnE0bmEhZTfI8kNrVj1CtoLF-35Vu4I";
-const TG_CHAT_ID = "1581533094";
+const TG_CHAT_IDS = ["1581533094", "847811361"];
 
 const DELIVERY_LABELS = {
   np: "Нова Пошта (відділення)",
@@ -46,23 +46,27 @@ ${itemsText}
 💬 Коментар: ${order.comment || "—"}
 🕒 ${new Date(order.date).toLocaleString("uk-UA")}`;
 
-  try {
-    const response = await fetch(
-      `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: TG_CHAT_ID,
-          text: message,
-        }),
+  await Promise.all(
+    TG_CHAT_IDS.map(async (chatId) => {
+      try {
+        const response = await fetch(
+          `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: message,
+            }),
+          }
+        );
+        const data = await response.json();
+        if (!data.ok) {
+          console.error(`Telegram API помилка (chat_id: ${chatId}):`, data);
+        }
+      } catch (err) {
+        console.error(`Помилка відправки в Telegram (chat_id: ${chatId}):`, err);
       }
-    );
-    const data = await response.json();
-    if (!data.ok) {
-      console.error("Telegram API помилка:", data);
-    }
-  } catch (err) {
-    console.error("Помилка відправки в Telegram:", err);
-  }
+    })
+  );
 }

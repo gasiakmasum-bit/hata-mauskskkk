@@ -68,8 +68,8 @@ export default function Header() {
                 src={`${import.meta.env.BASE_URL}img/logo.png`}
                 alt="Хата Майстра"
                 className="logo__img"
-                width="720"
-                height="262"
+                width="582"
+                height="400"
               />
             </picture>
           </Link>

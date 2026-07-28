@@ -13,8 +13,8 @@ export default function Footer() {
                 src={`${import.meta.env.BASE_URL}img/logo.png`}
                 alt="Хата Майстра"
                 className="logo-block__img"
-                width="720"
-                height="262"
+                width="582"
+                height="400"
                 loading="lazy"
               />
             </picture>

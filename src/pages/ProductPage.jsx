@@ -8,7 +8,6 @@ import {
   FaMinus,
   FaPlus,
   FaTruck,
-  FaShieldAlt,
   FaCheckCircle,
   FaStar,
   FaRegStar,
@@ -203,7 +202,16 @@ export default function ProductPage() {
 
           <div className="product-page__perks">
             <span><FaTruck /> Доставка по всій Україні</span>
-            <span><FaShieldAlt /> Офіційна гарантія від виробника</span>
+            <span>
+              <img
+                src={`${import.meta.env.BASE_URL}img/garant-36.svg`}
+                alt="Офіційна гарантія 36 місяців"
+                title="Офіційна гарантія 36 місяців"
+                className="product-page__warranty"
+                loading="lazy"
+              />
+              Офіційна гарантія від виробника
+            </span>
           </div>
         </div>
       </div>
