@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useStore } from "../context/StoreContext";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { CATALOG_CATEGORIES, BRAND_LIST } from "../data/products";
@@ -18,7 +18,7 @@ const ICON_OPTIONS = [
 const EMPTY_FORM = {
   title: "",
   brand: "",
-  category: "",
+  categories: [],
   price: "",
   oldPrice: "",
   code: "",
@@ -34,11 +34,20 @@ const EMPTY_FORM = {
 
 const MAX_PHOTOS = 5;
 
+// Повертає масив категорій товару незалежно від того, у старому він
+// форматі (одне поле category) чи в новому (масив categories).
+function getProductCategories(product) {
+  if (product.categories && product.categories.length > 0) return product.categories;
+  if (product.category) return [product.category];
+  return [];
+}
+
 export default function Admin() {
   const {
     products,
     productsLoaded,
     addProduct,
+    updateProduct,
     deleteProduct,
     seedProductsToFirestore,
   } = useStore();
@@ -54,6 +63,11 @@ export default function Admin() {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // Якщо editingId не порожній — форма працює в режимі редагування
+  // вже існуючого товару (замість додавання нового).
+  const [editingId, setEditingId] = useState(null);
+  const formRef = useRef(null);
 
   async function handlePhotoChange(e) {
     const files = Array.from(e.target.files || []);
@@ -157,10 +171,58 @@ export default function Admin() {
     setSpecs((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function toggleCategory(cat) {
+    setForm((prev) => ({
+      ...prev,
+      categories: prev.categories.includes(cat)
+        ? prev.categories.filter((c) => c !== cat)
+        : [...prev.categories, cat],
+    }));
+  }
+
   function resetForm() {
     setForm(EMPTY_FORM);
     setSpecs([{ key: "", value: "" }]);
     setFormError("");
+    setEditingId(null);
+  }
+
+  // Заповнює форму даними вже існуючого товару та перемикає її
+  // в режим редагування.
+  function startEdit(product) {
+    setForm({
+      title: product.title || "",
+      brand: product.brand || "",
+      categories: getProductCategories(product),
+      price: product.price != null ? String(product.price) : "",
+      oldPrice: product.oldPrice != null ? String(product.oldPrice) : "",
+      code: product.code || "",
+      rating: product.rating != null ? String(product.rating) : "5",
+      reviewsCount: product.reviewsCount != null ? String(product.reviewsCount) : "0",
+      discount: product.discount || "",
+      status: product.status || "В наявності",
+      icon: product.icon || "",
+      images:
+        product.images && product.images.length > 0
+          ? product.images
+          : product.image
+          ? [product.image]
+          : [],
+      description: product.description || "",
+      equipment: product.equipment || "",
+    });
+
+    const specEntries = Object.entries(product.specs || {});
+    setSpecs(
+      specEntries.length > 0
+        ? specEntries.map(([key, value]) => ({ key, value }))
+        : [{ key: "", value: "" }]
+    );
+
+    setFormError("");
+    setEditingId(product.id);
+
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function handleSubmit(e) {
@@ -170,7 +232,7 @@ export default function Admin() {
     if (uploadingPhoto) return setFormError("Зачекайте, поки завантажиться фото");
     if (!form.title.trim()) return setFormError("Вкажіть назву товару");
     if (!form.brand.trim()) return setFormError("Вкажіть бренд");
-    if (!form.category.trim()) return setFormError("Вкажіть категорію");
+    if (form.categories.length === 0) return setFormError("Оберіть хоча б одну категорію");
     const priceNum = Number(form.price);
     if (!priceNum || priceNum <= 0) return setFormError("Вкажіть коректну ціну");
 
@@ -179,11 +241,13 @@ export default function Admin() {
       if (key.trim()) specsObj[key.trim()] = value.trim();
     });
 
-    setSubmitting(true);
-    const result = await addProduct({
+    const payload = {
       title: form.title.trim(),
       brand: form.brand.trim(),
-      category: form.category.trim(),
+      categories: form.categories,
+      // Перше з обраних категорій зберігаємо і в старому полі "category" —
+      // для сумісності з рештою сайту та старими товарами.
+      category: form.categories[0],
       price: priceNum,
       oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
       code: form.code.trim(),
@@ -197,7 +261,12 @@ export default function Admin() {
       specs: specsObj,
       description: form.description.trim(),
       equipment: form.equipment.trim(),
-    });
+    };
+
+    setSubmitting(true);
+    const result = editingId
+      ? await updateProduct(editingId, payload)
+      : await addProduct(payload);
     setSubmitting(false);
 
     if (result.ok) {
@@ -207,6 +276,7 @@ export default function Admin() {
 
   async function handleDelete(id) {
     if (window.confirm("Видалити цей товар назавжди?")) {
+      if (editingId === id) resetForm();
       await deleteProduct(id);
     }
   }
@@ -262,8 +332,13 @@ export default function Admin() {
         </div>
       )}
 
-      <form className="auth-card" style={{ maxWidth: 640 }} onSubmit={handleSubmit}>
-        <h2>Додати новий товар</h2>
+      <form
+        className="auth-card"
+        style={{ maxWidth: 640 }}
+        onSubmit={handleSubmit}
+        ref={formRef}
+      >
+        <h2>{editingId ? `Редагування товару #${editingId}` : "Додати новий товар"}</h2>
 
         <div className="form-field">
           <label>Назва товару *</label>
@@ -359,18 +434,36 @@ export default function Admin() {
         </div>
 
         <div className="form-field">
-          <label>Категорія *</label>
-          <input
-            list="category-list"
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            placeholder="Електроінструмент, Садова техніка..."
-          />
-          <datalist id="category-list">
-            {CATALOG_CATEGORIES.map((c) => (
-              <option key={c} value={c} />
+          <label>Категорії * (можна обрати декілька)</label>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "8px 16px",
+              padding: "10px 12px",
+              border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: 8,
+            }}
+          >
+            {CATALOG_CATEGORIES.map((cat) => (
+              <label
+                key={cat}
+                style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 400 }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.categories.includes(cat)}
+                  onChange={() => toggleCategory(cat)}
+                />
+                {cat}
+              </label>
             ))}
-          </datalist>
+          </div>
+          {form.categories.length > 0 && (
+            <p style={{ marginTop: 6, opacity: 0.7, fontSize: 13 }}>
+              Обрано: {form.categories.join(", ")}
+            </p>
+          )}
         </div>
 
         <div className="form-field">
@@ -488,9 +581,21 @@ export default function Admin() {
 
         {formError && <span className="form-error">{formError}</span>}
 
-        <button className="btn btn--primary btn--block" type="submit" disabled={submitting}>
-          {submitting ? "Додаємо..." : "Додати товар"}
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn btn--primary btn--block" type="submit" disabled={submitting}>
+            {submitting ? "Зберігаємо..." : editingId ? "Зберегти зміни" : "Додати товар"}
+          </button>
+          {editingId && (
+            <button
+              className="btn btn--secondary"
+              type="button"
+              onClick={resetForm}
+              disabled={submitting}
+            >
+              Скасувати
+            </button>
+          )}
+        </div>
       </form>
 
       <h2 style={{ marginTop: 40 }}>
@@ -506,20 +611,31 @@ export default function Admin() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                gap: 12,
                 padding: "10px 0",
                 borderBottom: "1px solid rgba(255,255,255,0.1)",
+                background: editingId === p.id ? "rgba(255,255,255,0.05)" : "transparent",
               }}
             >
               <span>
                 #{p.id} — {p.title} ({p.price} ₴)
+                <br />
+                <span style={{ opacity: 0.6, fontSize: 13 }}>
+                  {getProductCategories(p).join(", ") || "без категорії"}
+                </span>
               </span>
-              <button
-                className="btn btn--secondary"
-                type="button"
-                onClick={() => handleDelete(p.id)}
-              >
-                Видалити
-              </button>
+              <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <button className="btn btn--secondary" type="button" onClick={() => startEdit(p)}>
+                  Редагувати
+                </button>
+                <button
+                  className="btn btn--secondary"
+                  type="button"
+                  onClick={() => handleDelete(p.id)}
+                >
+                  Видалити
+                </button>
+              </span>
             </div>
           ))}
         </div>

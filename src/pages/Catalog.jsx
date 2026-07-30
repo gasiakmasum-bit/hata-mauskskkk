@@ -36,7 +36,13 @@ export default function Catalog() {
     let list = products.filter((p) => {
       const matchPrice = p.price >= minPrice && p.price <= maxPrice;
       const matchBrand = brands.length === 0 || brands.includes(p.brand);
-      const matchCategory = !category || p.category === category;
+      const productCategories =
+        p.categories && p.categories.length > 0
+          ? p.categories
+          : p.category
+          ? [p.category]
+          : [];
+      const matchCategory = !category || productCategories.includes(category);
       return matchPrice && matchBrand && matchCategory;
     });
 

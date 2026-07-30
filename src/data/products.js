@@ -110,6 +110,8 @@ export const CATALOG_CATEGORIES = [
   "Насоси",
   "Ручний інструмент",
   "Витратні матеріали",
+  "Зарядні пристрої",
+  "Акумулятори",
 ];
 
 export const CATALOG_BRANDS = ["Vitals", "Forte", "Werk", "Sturmax"];
