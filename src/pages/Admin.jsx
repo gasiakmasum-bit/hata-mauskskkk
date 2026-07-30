@@ -60,6 +60,7 @@ export default function Admin() {
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [specs, setSpecs] = useState([{ key: "", value: "" }]);
+  const [bulkSpecsText, setBulkSpecsText] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -167,6 +168,39 @@ export default function Admin() {
     setSpecs((prev) => [...prev, { key: "", value: "" }]);
   }
 
+  // Розбирає вставлений багаторядковий текст (наприклад, скопійований
+  // з таблиці характеристик іншого сайту чи з Excel) на пари
+  // "назва — значення" й одразу додає їх до списку характеристик.
+  // Підтримує розділювач Tab (стандартно при копіюванні з таблиці),
+  // а якщо його немає — 2+ пробіли, двокрапку або тире.
+  function parseBulkSpecs() {
+    const lines = bulkSpecsText.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+
+    const parsed = lines
+      .map((line) => {
+        let parts = line.split("\t").map((p) => p.trim()).filter(Boolean);
+        if (parts.length < 2) parts = line.split(/\s{2,}/).map((p) => p.trim()).filter(Boolean);
+        if (parts.length < 2) {
+          const m = line.match(/^(.+?)\s*[:—-]\s+(.+)$/);
+          if (m) parts = [m[1], m[2]];
+        }
+        if (parts.length < 2) return null;
+        const key = parts[0];
+        const value = parts.slice(1).join(" ").trim();
+        return key && value ? { key, value } : null;
+      })
+      .filter(Boolean);
+
+    if (parsed.length === 0) return;
+
+    setSpecs((prev) => {
+      const nonEmpty = prev.filter((s) => s.key.trim() || s.value.trim());
+      return [...nonEmpty, ...parsed];
+    });
+    setBulkSpecsText("");
+  }
+
   function removeSpecRow(index) {
     setSpecs((prev) => prev.filter((_, i) => i !== index));
   }
@@ -183,6 +217,7 @@ export default function Admin() {
   function resetForm() {
     setForm(EMPTY_FORM);
     setSpecs([{ key: "", value: "" }]);
+    setBulkSpecsText("");
     setFormError("");
     setEditingId(null);
   }
@@ -531,6 +566,40 @@ export default function Admin() {
 
         <div className="form-field">
           <label>Характеристики</label>
+
+          <div
+            style={{
+              background: "#f7f7f8",
+              border: "1px dashed #ccc",
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ fontSize: 13, color: "#666", marginBottom: 6 }}>
+              Вставте скопійований список характеристик (з таблиці, Excel, іншого
+              сайту) — кожна пара «назва — значення» на своєму рядку — і
+              натисніть «Розкласти».
+            </div>
+            <textarea
+              rows={4}
+              style={{ width: "100%" }}
+              value={bulkSpecsText}
+              onChange={(e) => setBulkSpecsText(e.target.value)}
+              placeholder={
+                "Тип двигуна\tБезщітковий\nНапруга живлення, В\t18\nНомінальна потужність, Вт\t500"
+              }
+            />
+            <button
+              type="button"
+              className="btn btn--secondary"
+              style={{ marginTop: 8 }}
+              onClick={parseBulkSpecs}
+            >
+              Розкласти на характеристики
+            </button>
+          </div>
+
           {specs.map((spec, i) => (
             <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input
