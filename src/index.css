@@ -1891,3 +1891,41 @@ img {
   .testimonials-grid { grid-template-columns: 1fr; }
   .testimonials-summary { flex-direction: row; }
 }
+
+/* ===== Скелетон завантаження картки товару ===== */
+@keyframes skeleton-pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+.skeleton {
+  background: var(--line, #e5e0d8);
+  border-radius: 10px;
+  animation: skeleton-pulse 1.3s ease-in-out infinite;
+}
+.product-page--skeleton {
+  display: grid;
+  grid-template-columns: minmax(0, 480px) 1fr;
+  gap: 32px;
+}
+.skeleton--image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+}
+.skeleton--line {
+  height: 16px;
+  margin: 14px 0;
+  border-radius: 6px;
+}
+.skeleton--w30 { width: 30%; }
+.skeleton--w40 { width: 40%; }
+.skeleton--w60 { width: 60%; }
+.skeleton--w80 { width: 80%; }
+.skeleton--w100 { width: 100%; }
+
+@media (max-width: 900px) {
+  .product-page--skeleton {
+    grid-template-columns: 1fr;
+  }
+}

@@ -9,7 +9,8 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { db } from "../services/firebase";
+import { ref, deleteObject } from "firebase/storage";
+import { db, storage } from "../services/firebase";
 import { seedProducts } from "../data/products";
 import { sendOrderToTelegram } from "../services/telegram";
 import { useToast } from "./ToastContext";
@@ -305,30 +306,67 @@ export function StoreProvider({ children }) {
 
   const updateProduct = useCallback(
     async (id, productData) => {
+      const previous = products.find((p) => Number(p.id) === Number(id));
       try {
         await setDoc(doc(db, "products", String(id)), { ...productData, id: Number(id) });
         showToast("Товар оновлено!");
-        return { ok: true };
       } catch (error) {
         console.error("Не вдалося оновити товар у Firestore:", error);
         showToast("Не вдалося оновити товар.");
         return { ok: false };
       }
+      // Якщо якісь фото були замінені/видалені під час редагування —
+      // прибираємо старі файли у Storage, яких більше немає в новому списку.
+      const oldImages = previous?.images?.length
+        ? previous.images
+        : previous?.image
+        ? [previous.image]
+        : [];
+      const newImages = productData?.images?.length
+        ? productData.images
+        : productData?.image
+        ? [productData.image]
+        : [];
+      oldImages
+        .filter(
+          (url) =>
+            typeof url === "string" &&
+            url.includes("firebasestorage") &&
+            !newImages.includes(url)
+        )
+        .forEach((url) => {
+          deleteObject(ref(storage, url)).catch(() => {});
+        });
+      return { ok: true };
     },
-    [showToast]
+    [showToast, products]
   );
 
   const deleteProduct = useCallback(
     async (id) => {
+      const target = products.find((p) => Number(p.id) === Number(id));
       try {
         await deleteDoc(doc(db, "products", String(id)));
         showToast("Товар видалено.");
       } catch (error) {
         console.error("Не вдалося видалити товар у Firestore:", error);
         showToast("Не вдалося видалити товар.");
+        return;
       }
+      // Прибираємо за собою фото товару у Storage (по-тихому, без
+      // помилок для користувача — товар вже видалено).
+      const imagesToClean = target?.images?.length
+        ? target.images
+        : target?.image
+        ? [target.image]
+        : [];
+      imagesToClean
+        .filter((url) => typeof url === "string" && url.includes("firebasestorage"))
+        .forEach((url) => {
+          deleteObject(ref(storage, url)).catch(() => {});
+        });
     },
-    [showToast]
+    [showToast, products]
   );
 
   // Одноразове "заселення" бази стартовим набором товарів (кнопка в адмінці).

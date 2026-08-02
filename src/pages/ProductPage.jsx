@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
 import {
   FaHeart,
   FaRegHeart,
@@ -17,6 +18,7 @@ import {
   FaUserCircle,
   FaTimes,
 } from "react-icons/fa";
+import { db } from "../services/firebase";
 import { useStore } from "../context/StoreContext";
 import Breadcrumbs from "../components/Breadcrumbs";
 import ProductIcon from "../components/ProductIcon";
@@ -35,6 +37,7 @@ export default function ProductPage() {
   const navigate = useNavigate();
   const {
     products,
+    productsLoaded,
     favorites,
     toggleFavorite,
     addToCart,
@@ -43,7 +46,43 @@ export default function ProductPage() {
     deleteComment,
     currentUser,
   } = useStore();
-  const product = products.find((p) => p.id === Number(id));
+
+  // Товар з повного каталогу (з живого підпису onSnapshot, реактивний —
+  // наприклад, миттєво покаже нові коментарі/зміни адміном).
+  const productFromList = products.find((p) => p.id === Number(id));
+
+  // Поки весь каталог ще вантажиться (особливо одразу після F5), окремо
+  // й напряму тягнемо ОДИН потрібний товар — так картка показується
+  // швидко, а не чекає, поки підвантажиться весь список товарів.
+  const [directProduct, setDirectProduct] = useState(null);
+  const [directLoading, setDirectLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDirectProduct(null);
+    setDirectLoading(true);
+    getDoc(doc(db, "products", String(id)))
+      .then((snap) => {
+        if (!cancelled && snap.exists()) {
+          setDirectProduct({ ...snap.data(), firestoreId: snap.id });
+        }
+      })
+      .catch((error) => {
+        console.error("Не вдалося швидко завантажити товар:", error);
+      })
+      .finally(() => {
+        if (!cancelled) setDirectLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  // Пріоритет — живим даним з каталогу (щойно вони підвантажаться),
+  // а до того часу показуємо те, що прийшло напряму.
+  const product = productFromList || directProduct;
+  const stillLoading = !product && !productsLoaded && directLoading;
+
   const [qty, setQty] = useState(1);
   const [activePhoto, setActivePhoto] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -110,6 +149,22 @@ export default function ProductPage() {
   const [commentError, setCommentError] = useState("");
 
   if (!product) {
+    if (stillLoading) {
+      return (
+        <div className="container page">
+          <div className="product-page product-page--skeleton">
+            <div className="skeleton skeleton--image" />
+            <div className="product-page__info">
+              <div className="skeleton skeleton--line skeleton--w40" />
+              <div className="skeleton skeleton--line skeleton--w80" style={{ height: 32 }} />
+              <div className="skeleton skeleton--line skeleton--w30" />
+              <div className="skeleton skeleton--line skeleton--w60" style={{ height: 40, marginTop: 16 }} />
+              <div className="skeleton skeleton--line skeleton--w100" style={{ height: 100 }} />
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="container page">
         <p>Товар не знайдено.</p>

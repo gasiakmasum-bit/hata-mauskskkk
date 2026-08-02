@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "../services/firebase";
 import { useStore } from "../context/StoreContext";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { CATALOG_CATEGORIES, BRAND_LIST } from "../data/products";
@@ -65,6 +67,122 @@ export default function Admin() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  // ===== Міграція старих base64-фото у Firebase Storage =====
+  // Товари, додані ДО підключення Storage, зберігають фото прямо
+  // в документі як важкий base64-текст. Ця функція один раз проходить
+  // по всіх товарах, знаходить такі "важкі" фото, завантажує їх у
+  // Storage і замінює в базі на легкі посилання — після цього і старі,
+  // і нові товари вантажаться однаково швидко.
+  const [migrating, setMigrating] = useState(false);
+  const [migrationProgress, setMigrationProgress] = useState(null); // {done, total, failed}
+  const [migrationLog, setMigrationLog] = useState([]);
+
+  function isBase64Image(url) {
+    return typeof url === "string" && url.startsWith("data:image");
+  }
+
+  async function dataUrlToBlob(dataUrl) {
+    const res = await fetch(dataUrl);
+    return res.blob();
+  }
+
+  async function uploadDataUrlToStorage(dataUrl) {
+    const blob = await dataUrlToBlob(dataUrl);
+    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}.jpg`;
+    const storageRef = ref(storage, `products/${fileName}`);
+    await uploadBytes(storageRef, blob, { contentType: blob.type || "image/jpeg" });
+    return getDownloadURL(storageRef);
+  }
+
+  async function migrateProductImages(product) {
+    const oldImages = product.images && product.images.length
+      ? product.images
+      : product.image
+      ? [product.image]
+      : [];
+    const hasBase64 = oldImages.some(isBase64Image);
+    if (!hasBase64) return { skipped: true };
+
+    const newImages = [];
+    for (const img of oldImages) {
+      if (isBase64Image(img)) {
+        newImages.push(await uploadDataUrlToStorage(img));
+      } else {
+        newImages.push(img);
+      }
+    }
+    await updateProduct(product.id, {
+      ...product,
+      images: newImages,
+      image: newImages[0] || null,
+    });
+    return { skipped: false };
+  }
+
+  // Зберігає всі товари у JSON-файл на комп'ютер користувача —
+  // проста й надійна резервна копія перед будь-якими масовими змінами
+  // (наприклад, перед міграцією фото). У разі проблем товари можна
+  // буде відновити вручну з цього файлу.
+  function downloadBackup() {
+    const dataStr = JSON.stringify(products, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `khata-maystra-backup-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function runMigration() {
+    const toMigrate = products.filter((p) => {
+      const imgs = p.images && p.images.length ? p.images : p.image ? [p.image] : [];
+      return imgs.some(isBase64Image);
+    });
+    if (toMigrate.length === 0) {
+      setMigrationLog(["Усі товари вже використовують Storage — переносити нічого."]);
+      return;
+    }
+    setMigrating(true);
+    setMigrationLog([]);
+    setMigrationProgress({ done: 0, total: toMigrate.length, failed: 0 });
+
+    // Обробляємо по кілька товарів паралельно (не всі одразу),
+    // щоб не перевантажити з'єднання, але й не чекати надто довго.
+    const CONCURRENCY = 4;
+    let index = 0;
+    let done = 0;
+    let failed = 0;
+    const log = [];
+
+    async function worker() {
+      while (index < toMigrate.length) {
+        const current = toMigrate[index];
+        index += 1;
+        try {
+          await migrateProductImages(current);
+          log.push(`✅ Перенесено: ${current.title || current.id}`);
+        } catch (error) {
+          failed += 1;
+          console.error("Помилка міграції товару", current.id, error);
+          log.push(`❌ Помилка: ${current.title || current.id} — ${error.message}`);
+        }
+        done += 1;
+        setMigrationProgress({ done, total: toMigrate.length, failed });
+        setMigrationLog([...log]);
+      }
+    }
+
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, toMigrate.length) }, () => worker())
+    );
+
+    setMigrating(false);
+  }
+
   // Якщо editingId не порожній — форма працює в режимі редагування
   // вже існуючого товару (замість додавання нового).
   const [editingId, setEditingId] = useState(null);
@@ -92,18 +210,20 @@ export default function Admin() {
     setFormError("");
     setUploadingPhoto(true);
     try {
-      const dataUrls = await Promise.all(
-        filesToProcess.map((f) => compressImage(f, 700, 0.65))
+      const urls = await Promise.all(
+        filesToProcess.map((f) => compressAndUploadImage(f, 700, 0.65))
       );
-      setForm((prev) => ({ ...prev, images: [...prev.images, ...dataUrls] }));
+      setForm((prev) => ({ ...prev, images: [...prev.images, ...urls] }));
       if (files.length > availableSlots) {
         setFormError(
           `Додано лише ${availableSlots} фото — досягнуто ліміту ${MAX_PHOTOS} на товар`
         );
       }
     } catch (error) {
-      console.error("Не вдалося обробити фото:", error);
-      setFormError("Не вдалося обробити одне з фото. Спробуйте ще раз.");
+      console.error("Не вдалося завантажити фото:", error);
+      setFormError(
+        "Не вдалося завантажити одне з фото. Перевірте інтернет-з'єднання та спробуйте ще раз."
+      );
     } finally {
       setUploadingPhoto(false);
       e.target.value = "";
@@ -114,9 +234,12 @@ export default function Admin() {
     setForm((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
   }
 
-  // Стискає й зменшує фото прямо в браузері (без завантаження на сервер),
-  // щоб воно вміщалось у документ Firestore (ліміт ~1 МБ на товар).
-  function compressImage(file, maxSize, quality) {
+  // Стискає й зменшує фото прямо в браузері, а потім завантажує готовий
+  // файл у Firebase Storage і повертає публічне посилання на нього.
+  // Завдяки цьому в самому документі Firestore зберігається лише коротке
+  // посилання (URL), а не важке base64-зображення — товари вантажаться
+  // набагато швидше, навіть якщо у товару кілька фото.
+  function compressImageToBlob(file, maxSize, quality) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error("Не вдалося прочитати файл"));
@@ -137,12 +260,27 @@ export default function Admin() {
           canvas.height = height;
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", quality));
+          canvas.toBlob(
+            (blob) =>
+              blob
+                ? resolve(blob)
+                : reject(new Error("Не вдалося стиснути зображення")),
+            "image/jpeg",
+            quality
+          );
         };
         img.src = reader.result;
       };
       reader.readAsDataURL(file);
     });
+  }
+
+  async function compressAndUploadImage(file, maxSize, quality) {
+    const blob = await compressImageToBlob(file, maxSize, quality);
+    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}.jpg`;
+    const storageRef = ref(storage, `products/${fileName}`);
+    await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
+    return getDownloadURL(storageRef);
   }
 
   function handleLogin(e) {
@@ -354,6 +492,76 @@ export default function Admin() {
     <div className="container page">
       <Breadcrumbs items={[{ label: "Адмінка" }]} />
       <h1 className="page-title">Керування товарами</h1>
+
+      {productsLoaded && products.length > 0 && (
+        <div
+          className="form-field"
+          style={{
+            marginBottom: 24,
+            padding: 16,
+            border: "1px solid var(--line, #e6e3da)",
+            borderRadius: 12,
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>Прискорення завантаження фото</h3>
+          <p style={{ marginBottom: 12 }}>
+            Нові фото вже автоматично зберігаються у швидкому сховищі (Storage).
+            Спершу завантажте резервну копію товарів (про всяк випадок), а потім
+            натисніть кнопку перенесення — вона перенесе туди й старі фото,
+            додані раніше. Після цього всі картки товарів вантажитимуться швидко.
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button className="btn btn--ghost" onClick={downloadBackup} type="button">
+              1. Завантажити резервну копію (JSON)
+            </button>
+            <button
+              className="btn btn--secondary"
+              onClick={runMigration}
+              type="button"
+              disabled={migrating}
+            >
+              {migrating ? "Перенесення триває..." : "2. Перенести старі фото в Storage"}
+            </button>
+          </div>
+          {migrationProgress && (
+            <div style={{ marginTop: 12 }}>
+              <p>
+                Оброблено {migrationProgress.done} з {migrationProgress.total}
+                {migrationProgress.failed > 0 && ` (помилок: ${migrationProgress.failed})`}
+              </p>
+              <div
+                style={{
+                  height: 8,
+                  background: "var(--line, #e6e3da)",
+                  borderRadius: 4,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${Math.round(
+                      (migrationProgress.done / migrationProgress.total) * 100
+                    )}%`,
+                    background: "var(--orange, #ff7a1a)",
+                    transition: "width 0.2s ease",
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          {migrationLog.length > 0 && (
+            <details style={{ marginTop: 12 }}>
+              <summary>Показати деталі ({migrationLog.length})</summary>
+              <div style={{ maxHeight: 200, overflowY: "auto", fontSize: 13, marginTop: 8 }}>
+                {migrationLog.map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
 
       {productsLoaded && products.length === 0 && (
         <div className="form-field" style={{ marginBottom: 24 }}>
