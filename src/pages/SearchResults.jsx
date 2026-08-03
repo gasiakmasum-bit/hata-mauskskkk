@@ -8,9 +8,20 @@ export default function SearchResults() {
   const [searchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").toLowerCase().trim();
 
-  const filtered = products.filter(
-    (p) => p.title.toLowerCase().includes(query) || p.brand.toLowerCase().includes(query)
-  );
+  const filtered = query
+    ? products.filter((p) => {
+        const title = String(p.title || "").toLowerCase();
+        const brand = String(p.brand || "").toLowerCase();
+        const category = String(p.category || "").toLowerCase();
+        const code = String(p.code || "").toLowerCase();
+        return (
+          title.includes(query) ||
+          brand.includes(query) ||
+          category.includes(query) ||
+          code.includes(query)
+        );
+      })
+    : products;
 
   return (
     <div className="container page">
