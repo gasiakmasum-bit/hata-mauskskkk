@@ -114,8 +114,6 @@ export const CATALOG_CATEGORIES = [
   "Акумулятори",
 ];
 
-export const CATALOG_BRANDS = ["Vitals", "Forte", "Werk", "Sturmax"];
-
 export const BRAND_LIST = [
   "Sturmax",
   "Vitals",
@@ -131,6 +129,8 @@ export const BRAND_LIST = [
   "Apro",
   "GTM",
 ];
+
+export const CATALOG_BRANDS = BRAND_LIST;
 
 export const MANUFACTURERS = [
   {

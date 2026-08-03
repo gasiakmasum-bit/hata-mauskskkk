@@ -34,8 +34,6 @@ const EMPTY_FORM = {
   equipment: "",
 };
 
-const MAX_PHOTOS = 5;
-
 // Повертає масив категорій товару незалежно від того, у старому він
 // форматі (одне поле category) чи в новому (масив categories).
 function getProductCategories(product) {
@@ -192,15 +190,7 @@ export default function Admin() {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const currentCount = form.images.length;
-    const availableSlots = MAX_PHOTOS - currentCount;
-    if (availableSlots <= 0) {
-      setFormError(`Максимум ${MAX_PHOTOS} фото на один товар`);
-      e.target.value = "";
-      return;
-    }
-
-    const filesToProcess = files.slice(0, availableSlots);
+    const filesToProcess = files;
     const invalidFile = filesToProcess.find((f) => !f.type.startsWith("image/"));
     if (invalidFile) {
       setFormError("Оберіть тільки файли зображень (jpg, png, webp тощо)");
@@ -214,11 +204,6 @@ export default function Admin() {
         filesToProcess.map((f) => compressAndUploadImage(f, 700, 0.65))
       );
       setForm((prev) => ({ ...prev, images: [...prev.images, ...urls] }));
-      if (files.length > availableSlots) {
-        setFormError(
-          `Додано лише ${availableSlots} фото — досягнуто ліміту ${MAX_PHOTOS} на товар`
-        );
-      }
     } catch (error) {
       console.error("Не вдалося завантажити фото:", error);
       setFormError(
@@ -593,13 +578,13 @@ export default function Admin() {
         </div>
 
         <div className="form-field">
-          <label>Фото товару (можна декілька, до {MAX_PHOTOS})</label>
+          <label>Фото товару (можна декілька)</label>
           <input
             type="file"
             accept="image/*"
             multiple
             onChange={handlePhotoChange}
-            disabled={uploadingPhoto || form.images.length >= MAX_PHOTOS}
+            disabled={uploadingPhoto}
           />
           {uploadingPhoto && <p style={{ marginTop: 6 }}>Обробка фото...</p>}
           {form.images.length > 0 && !uploadingPhoto && (

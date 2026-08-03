@@ -93,7 +93,7 @@ export default function Checkout() {
 
     let deliveryAddress = "";
     if (delivery === "pickup") {
-      deliveryAddress = "Самовивіз: м. Луцьк, вул. Ковельська, 123";
+      deliveryAddress = "Самовивіз: м. Самбір, вул. Степана Бандери, 26";
     } else {
       if (!cityRef || cityQuery.trim().length < 2) nextErrors.city = "Оберіть місто зі списку";
       if (delivery === "np") {
@@ -219,7 +219,7 @@ export default function Checkout() {
               </>
             ) : (
               <p className="pickup-note">
-                📍 Забрати можна за адресою: <strong>м. Луцьк, вул. Ковельська, 123</strong>, Пн-Нд 08:00–20:00
+                📍 Забрати можна за адресою: <strong>м. Самбір, вул. Степана Бандери, 26</strong>, Пн-Нд 08:00–20:00
               </p>
             )}
           </div>
